@@ -98,6 +98,7 @@ def agregar_atencion(atencion: AtencionIn):
     atencion_id = cursor.lastrowid
     conn.commit()
     conn.close()
+
     return {
         "id": atencion_id,
         "duenio": atencion.duenio,
@@ -105,4 +106,28 @@ def agregar_atencion(atencion: AtencionIn):
         "servicio": servicio["nombre"],
         "costo": servicio["costo"],
         "fecha": fecha
+    }
+
+# Endpoint para listar servicios de una mascota por dueño y su costo total
+from fastapi import Query
+
+@app.get("/atenciones/servicios", response_model=dict)
+def listar_servicios_por_mascota_y_duenio(duenio: str = Query(...), mascota: str = Query(...)):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT s.nombre, s.costo
+        FROM atenciones a
+        JOIN servicios s ON a.servicio_id = s.id
+        WHERE a.duenio = ? AND a.mascota = ?
+    ''', (duenio, mascota))
+    servicios = cursor.fetchall()
+    conn.close()
+    lista_servicios = [dict(nombre=row["nombre"], costo=row["costo"]) for row in servicios]
+    costo_total = sum(row["costo"] for row in servicios)
+    return {
+        "duenio": duenio,
+        "mascota": mascota,
+        "servicios": lista_servicios,
+        "costo_total": costo_total
     }
